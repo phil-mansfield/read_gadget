@@ -1,2 +1,2 @@
 # read_gadget
-A simple library that reads DMO gadget files
+A simple Python library that reads DMO gadget files.
