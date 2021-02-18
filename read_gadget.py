@@ -86,7 +86,7 @@ class LGadget2(object):
         file, the fields are:
           "x" - Position vectors in comoving Mpc/h. Shape: (n, 3)
           "v" - Velocity vectors in physical km/s. Shape: (n, 3)
-         "id" - Unique integer ID identifying eahc particle. Shape: (n, 3)
+         "id" - Unique integer ID identifying each particle. Shape: (n,)
 
         Some files can also contian additional information:
         "phi" - Potential. No clue what the units are. Shape: (n,)
