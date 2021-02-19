@@ -360,23 +360,38 @@ def test():
     bins = 200
     N = np.zeros((bins, len(phi)))
 
+    mins = [np.min(id_j) for id_j in id]
+    maxes = [np.max(id_j) for id_j in id]
+
     for i in range(8):
         file_name = file_fmt % i
         f = Gadget2Zoom(file_name, ("x", "v", "id32", "phi"))
 
         phi = f.read("phi")
+        id = f.read("id32")
+
+
         for j in range(len(phi)):
+            maxes[j] = max(np.max(id[j]), maxes[j])
+            mins[j] = min(np.min(id[j]), mins[j])
             n, edges = np.histogram(phi[j], range=hist_range, bins=bins)
             N[:,j] += n
 
     mid = (edges[1:] + edges[:-1]) / 2
 
+    print(f.mp)
+    print(f.n_tot)
+    print(np.cumsum(f.n_tot))
+    print(mins)
+    print(maxes)
+
+    """
     for i in range(len(mid)):
         print("%11.3f" % mid[i], end=" ")
         for j in range(len(phi)):
             print("%8d" % N[i,j], end=" ")
         print()
-
+    """
 
 if __name__ == "__main__":
     test()
