@@ -27,10 +27,10 @@ import struct
 import array
 
 HEADER_SIZE = 256
-RECOGNIZED_VAR_TYPES = ["x", "v", "id", "phi", "acc", "dt"]
+RECOGNIZED_VAR_TYPES = ["x", "v", "id32", "id64", "phi", "acc", "dt"]
 
 class LGadget2(object):
-    def __init__(self, file_name, fields=("x", "v", "id")):
+    def __init__(self, file_name, fields=("x", "v", "id64")):
         """ LGadget2 represents a LGadget2 file located at file_name. It can
         read particle data and contains useful informaiton about the simulation.
 
@@ -93,7 +93,8 @@ class LGadget2(object):
         file, the fields are:
           "x" - Position vectors in comoving Mpc/h. Shape: (n, 3)
           "v" - Velocity vectors in physical km/s. Shape: (n, 3)
-         "id" - Unique integer ID identifying each particle. Shape: (n,)
+         "id64" - Unique uint64 ID identifying each particle. Shape: (n,)
+         "id32" - Unique uint32 ID identifying each particle. Shape: (n,)
 
         Some files can also contian additional information:
         "phi" - Potential. No clue what the units are. Shape: (n,)
@@ -110,7 +111,7 @@ class LGadget2(object):
 
         # Compute offset to data.
         offset = HEADER_SIZE + 12
-        for i in range(len(fields)):
+        for i in range(len(self.fields)):
             if self.fields[i] == var_type: break
             offset += self._field_size(var_type)
             
@@ -133,10 +134,15 @@ class LGadget2(object):
             v *= np.sqrt(self.a)
             return v
 
-        elif var_type == "id":
+        elif var_type == "id64":
             id = array.array("Q")
             id.fromfile(f, self.n)
             return np.array(id, dtype=np.uint64)
+
+        elif var_type == "id32":
+            id = array.array("I")
+            id.fromfile(f, self.n)
+            return np.array(id, dtype=np.uint32)
 
         elif var_type == "phi":
             phi = array.array("f")
@@ -161,12 +167,12 @@ class LGadget2(object):
         f.close()
 
     def _field_size(self, var_type):
-        elem_size = {"x": 12, "v": 12, "acc": 12,
-                     "phi": 4, "dt": 4, "id": 8}[var_type]
+        elem_size = {"x": 12, "v": 12, "acc": 12, "id32": 4,
+                     "phi": 4, "dt": 4, "id64": 8}[var_type]
         return 8 + elem_size*self.n
 
 class Gadget2Zoom(object):
-    def __init__(self, file_name, fields=("x", "v", "id")):
+    def __init__(self, file_name, fields=("x", "v", "id64")):
         """ Gadget2Zoom represents a Gadget2 file located at file_name which is
         associated with a multi-reoslution zoom-in simulation. It can read
         particle data and contains useful informaiton about the simulation.
@@ -248,7 +254,8 @@ class Gadget2Zoom(object):
         file, the fields are:
           "x" - Position vectors in comoving Mpc/h. Shape: (n, 3)
           "v" - Velocity vectors in physical km/s. Shape: (n, 3)
-         "id" - Unique integer ID identifying each particle. Shape: (n,)
+        "id64" - Unique uint64 ID identifying each particle. Shape: (n,)
+        "id32" - Unique uint32 ID identifying each particle. Shape: (n,)
 
         Some files can also contian additional information:
         "phi" - Potential. No clue what the units are. Shape: (n,)
@@ -267,7 +274,7 @@ class Gadget2Zoom(object):
         offset = HEADER_SIZE + 12
         for i in range(len(self.fields)):
             if self.fields[i] == var_type: break
-            offset += self._field_size(var_type)
+            offset += self._field_size(self.fields[i])
             
         f = open(self.file_name, "rb")
         f.seek(offset)
@@ -290,10 +297,15 @@ class Gadget2Zoom(object):
             v *= np.sqrt(self.a)
             return self._resolution_bins(v)
 
-        elif var_type == "id":
+        elif var_type == "id64":
             id = array.array("Q")
             id.fromfile(f, n)
             return self._resolution_bins(np.array(id, dtype=np.uint64))
+
+        elif var_type == "id32":
+            id = array.array("I")
+            id.fromfile(f, n)
+            return self._resolution_bins(np.array(id, dtype=np.uint32))
 
         elif var_type == "phi":
             phi = array.array("f")
@@ -318,8 +330,8 @@ class Gadget2Zoom(object):
         f.close()
 
     def _field_size(self, var_type):
-        elem_size = {"x": 12, "v": 12, "acc": 12,
-                     "phi": 4, "dt": 4, "id": 8}[var_type]
+        elem_size = {"x": 12, "v": 12, "acc": 12, "id32": 4,
+                     "phi": 4, "dt": 4, "id64": 8}[var_type]
         return 8 + elem_size*np.sum(self.n)
 
     def _resolution_bins(self, x):
@@ -334,24 +346,37 @@ class Gadget2Zoom(object):
         return out
 
 def test():    
-    test_file = "/scratch/users/enadler/new_mw_zoomins/Halo416_2K/output_potential/snapshot_000.0"
+    file_fmt = "/scratch/users/enadler/new_mw_zoomins/Halo416_2K/output_potential/snapshot_000.%d"
 
-    f = Gadget2Zoom(test_file, ("x", "v", "id", "phi"))
+    f = Gadget2Zoom(file_fmt % 0, ("x", "v", "id32", "phi", "acc"))
 
     x = f.read("x")
     v = f.read("v")
-    id = f.read("id")
+    id = f.read("id32")
     phi = f.read("phi")
+    acc = f.read("acc")
 
-    print("High resolution x")
-    print(x[0])
-    print("High resolution v")
-    print(v[0])
-    print("High resolution id")
-    np.set_printoptions(formatter={'int':hex})
-    print(id[0])
-    print("High resolution phi")
-    print(phi[0])
-    
+    hist_range = (-100000, 100000)
+    bins = 200
+    N = np.zeros((bins, len(phi)))
+
+    for i in range(8):
+        file_name = file_fmt % i
+        f = Gadget2Zoom(file_name, ("x", "v", "id32", "phi"))
+
+        phi = f.read("phi")
+        for j in range(len(phi)):
+            n, edges = np.histogram(phi[j], range=hist_range, bins=bins)
+            N[:,j] += n
+
+    mid = (edges[1:] + edges[:-1]) / 2
+
+    for i in range(len(mid)):
+        print("%11.3f" % mid[i], end=" ")
+        for j in range(len(phi)):
+            print("%8d" % N[i,j], end=" ")
+        print()
+
+
 if __name__ == "__main__":
     test()
