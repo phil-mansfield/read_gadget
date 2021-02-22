@@ -494,11 +494,11 @@ class MusicIndex(object):
         
     def _fine_idx_array_level(self, level_i, original_coordinates):
         idx = np.arange(self.n_logical[level_i], dtype=int)
+        # IDs are in z-y-x-major ordering:
         idx_vector = np.array([
-            idx % self.size[level_i,0],
-            (idx // self.size[level_i,0]) % self.size[level_i,1],
-            idx // (self.size[level_i,0]*self.size[level_i,1]),
-            
+            idx // (self.size[level_i,2]*self.size[level_i,1]),
+            (idx // self.size[level_i,2]) % self.size[level_i,1],
+            idx % self.size[level_i,2],
         ]).T
 
         if level_i > 0:
