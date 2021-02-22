@@ -439,7 +439,7 @@ class MusicIndex(object):
         self.fine_domain_dx = self.domain_dx * 2**(level[0] - level[-1])
         self.fine_offset = np.zeros(self.offset.shape, dtype=int)
         for i in range(len(self.offset) - 2, -1, -1):
-            scale = 2**(self.level[0] - self.level[i])
+            scale = 2**(self.level[0] - self.level[i] + 1)
             self.fine_offset[i,:] = (self.fine_offset[i+1,:] +
                                      scale*self.offset[i,:])
             
@@ -476,7 +476,7 @@ class MusicIndex(object):
 
     def fine_idx_array(self, level_idxs=None, original_coordinates=False):
         """ fine_idx_array returns the grid indices of particles in the order
-        which particles are output by MUSIC (i.e. an (ID-1)-based lookup table).
+        which particles are output by MUSIC (i.e. an ID-based lookup table).
         The indices are in the highest resolution grid units.
 
         Since this lookup table can be quite memory-intesnive, you can specify
@@ -555,7 +555,6 @@ def test():
 
         phi = f.read("phi")
         id = f.read("id32")
-
 
         for j in range(len(phi)):
             maxes[j] = max(np.max(id[j]), maxes[j])
