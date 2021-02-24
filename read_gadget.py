@@ -67,6 +67,8 @@ class LGadget2(object):
         self._flag_sfr = struct.unpack("I", f.read(4))[0]
         self._flag_feedback = struct.unpack("I", f.read(4))[0]
         self._n_part_total = struct.unpack("IIIIII", f.read(4*6))
+        self._flag_cooling = struct.unpack("I", f.read(4))[0]
+        self._num_files = struct.unpack("I", f.read(4))[0]
         self._box_size = struct.unpack("d", f.read(8))[0]
         self._omega0 = struct.unpack("d", f.read(8))[0]
         self._omega_lambda = struct.unpack("d", f.read(8))[0]
