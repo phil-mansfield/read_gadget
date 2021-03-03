@@ -29,67 +29,7 @@ import array
 HEADER_SIZE = 256
 RECOGNIZED_VAR_TYPES = ["x", "v", "id32", "id64", "phi", "acc", "dt"]
 
-class LGadget2(object):
-    def __init__(self, file_name, fields=("x", "v", "id64")):
-        """ LGadget2 represents a LGadget2 file located at file_name. It can
-        read particle data and contains useful informaiton about the simulation.
-
-        Fields:
-              n - The number of particles in the file.
-          n_tot - The total number of particles in the simulation.
-             mp - The particle mass in Msun/h.
-              L - The box size in comoving Mpc/h.
-              z - The redshift.
-              a - The scale factor.
-        omega_m - Omega_M(z=0)
-        omega_l - Omega_Lambda(z=0)
-           h100 - H(z=0) / (100 km/s/Mpc)
-
-        If you are using non-standard fields, you can specify their order
-        in the file by setting the fields argument to a tuple of strings in the
-        correct order. See the read docstring for addtional details.
-        """
-
-        self.fields = fields
-        self.file_name = file_name
-        f = open(file_name, "rb")
-
-        # Check that this is the right type of file.
-        header_size = struct.unpack("I", f.read(4))[0]
-        if header_size != HEADER_SIZE:
-            raise ValueError("%s is not an LGadget2 file." % file_name)
-
-        # Read the raw header data.
-        self._n_part = struct.unpack("IIIIII", f.read(4*6))
-        self._mass = struct.unpack("dddddd", f.read(8*6))
-        self._time = struct.unpack("d", f.read(8))[0]
-        self._redshift = struct.unpack("d", f.read(8))[0]
-        self._flag_sfr = struct.unpack("I", f.read(4))[0]
-        self._flag_feedback = struct.unpack("I", f.read(4))[0]
-        self._n_part_total = struct.unpack("IIIIII", f.read(4*6))
-        self._flag_cooling = struct.unpack("I", f.read(4))[0]
-        self._num_files = struct.unpack("I", f.read(4))[0]
-        self._box_size = struct.unpack("d", f.read(8))[0]
-        self._omega0 = struct.unpack("d", f.read(8))[0]
-        self._omega_lambda = struct.unpack("d", f.read(8))[0]
-        self._hubble_param = struct.unpack("d", f.read(8))[0]
-        self._flag_setllar_age = struct.unpack("I", f.read(4))[0]
-        self._hash_tab_size = struct.unpack("I", f.read(4))[0]
-
-        # Convert to, IMO, more user-friendly versions of the default header
-        # fields.
-        self.n = self._n_part[1] + (self._n_part[0]<<32)
-        self.n_tot = self._n_part_total[1] + (self._n_part_total[0]<<32)
-        self.L = self._box_size
-        self.mp = self._mass[1]*1e10
-        self.z = self._redshift
-        self.a = self._time
-        self.omega_m = self._omega0
-        self.omega_l = self._omega_lambda
-        self.h100 = self._hubble_param
-
-        f.close()
-
+class AbstractCosmological(object)
     def read(self, var_type):
         """ read() reads the specified variable from the file. For a standard
         file, the fields are:
@@ -173,6 +113,145 @@ class LGadget2(object):
                      "phi": 4, "dt": 4, "id64": 8}[var_type]
         return 8 + elem_size*self.n
 
+class LGadget2(AbstractCosmological):
+    # See AbstractCosmological for the read() method documentaion.
+    def __init__(self, file_name, fields=("x", "v", "id64")):
+        """ LGadget2 represents a LGadget2 file located at file_name. It can
+        read particle data and contains useful informaiton about the simulation.
+
+        Fields:
+              n - The number of particles in the file.
+          n_tot - The total number of particles in the simulation.
+             mp - The particle mass in Msun/h.
+              L - The box size in comoving Mpc/h.
+              z - The redshift.
+              a - The scale factor.
+        omega_m - Omega_M(z=0)
+        omega_l - Omega_Lambda(z=0)
+           h100 - H(z=0) / (100 km/s/Mpc)
+
+        If you are using non-standard fields, you can specify their order
+        in the file by setting the fields argument to a tuple of strings in the
+        correct order. See the read docstring for addtional details.
+        """
+
+        self.fields = fields
+        self.file_name = file_name
+        f = open(file_name, "rb")
+
+        # Check that this is the right type of file.
+        header_size = struct.unpack("I", f.read(4))[0]
+        if header_size != HEADER_SIZE:
+            raise ValueError("%s is not an LGadget2 file." % file_name)
+
+        # Read the raw header data.
+        self._n_part = struct.unpack("IIIIII", f.read(4*6))
+        self._mass = struct.unpack("dddddd", f.read(8*6))
+        self._time = struct.unpack("d", f.read(8))[0]
+        self._redshift = struct.unpack("d", f.read(8))[0]
+        self._flag_sfr = struct.unpack("I", f.read(4))[0]
+        self._flag_feedback = struct.unpack("I", f.read(4))[0]
+        self._n_part_total = struct.unpack("IIIIII", f.read(4*6))
+        self._flag_cooling = struct.unpack("I", f.read(4))[0]
+        self._num_files = struct.unpack("I", f.read(4))[0]
+        self._box_size = struct.unpack("d", f.read(8))[0]
+        self._omega0 = struct.unpack("d", f.read(8))[0]
+        self._omega_lambda = struct.unpack("d", f.read(8))[0]
+        self._hubble_param = struct.unpack("d", f.read(8))[0]
+        self._flag_setllar_age = struct.unpack("I", f.read(4))[0]
+        self._hash_tab_size = struct.unpack("I", f.read(4))[0]
+
+        # Convert to, IMO, more user-friendly versions of the default header
+        # fields.
+        self.n = self._n_part[1] + (self._n_part[0]<<32)
+        self.n_tot = self._n_part_total[1] + (self._n_part_total[0]<<32)
+        self.L = self._box_size
+        self.mp = self._mass[1]*1e10
+        self.z = self._redshift
+        self.a = self._time
+        self.omega_m = self._omega0
+        self.omega_l = self._omega_lambda
+        self.h100 = self._hubble_param
+
+        f.close()
+
+class Gadget2Cosmological(AbstractCosmological):
+    # See AbstractCosmological for the read() method documentaion.
+    def __init__(self, file_name, fields=("x", "v", "id64")):
+        """ Gadget2Zoom represents a Gadget2 file located at file_name which is
+        associated with a multi-reoslution zoom-in simulation. It can read
+        particle data and contains useful informaiton about the simulation.
+
+        Fields:
+              n - The number of particles in the file. An array where each entry
+                  is a different resolution level. empty resolution levels
+                  have been removed and the array is ordered from smallest to
+                  largest particle size.  
+          n_tot - The total number of particles in the simulation. An array with
+                  the same shape as n.
+         n_file - The number of files in the simulation.
+             mp - The particle mass in Msun/h. An array with the same shape as
+                  n.
+              L - The box size in comoving Mpc/h.
+              z - The redshift.
+              a - The scale factor.
+        omega_m - Omega_M(z=0)
+        omega_l - Omega_Lambda(z=0)
+           h100 - H(z=0) / (100 km/s/Mpc)
+
+        If you are using non-standard fields, you can specify their order
+        in the file by setting the fields argument to a tuple of strings in the
+        correct order. See the read docstring for addtional details.
+        """
+
+        self.fields = fields
+        self.file_name = file_name
+        f = open(file_name, "rb")
+
+        # Check that this is the right type of file.
+        header_size = struct.unpack("I", f.read(4))[0]
+
+        if header_size != HEADER_SIZE:
+            raise ValueError("%s is not an Gadget2 file." % file_name)
+
+        # Read the raw header data.
+        self._n_part = struct.unpack("IIIIII", f.read(4*6))
+        self._mass = struct.unpack("dddddd", f.read(8*6))
+        self._time = struct.unpack("d", f.read(8))[0]
+        self._redshift = struct.unpack("d", f.read(8))[0]
+        self._flag_sfr = struct.unpack("I", f.read(4))[0]
+        self._flag_feedback = struct.unpack("I", f.read(4))[0]
+        self._n_part_total = struct.unpack("IIIIII", f.read(4*6))
+        self._flag_feedback = struct.unpack("I", f.read(4))[0]
+        self._num_files = struct.unpack("I", f.read(4))[0]
+        self._box_size = struct.unpack("d", f.read(8))[0]
+        self._omega0 = struct.unpack("d", f.read(8))[0]
+        self._omega_lambda = struct.unpack("d", f.read(8))[0]
+        self._hubble_param = struct.unpack("d", f.read(8))[0]
+        self._flag_stellar_age = struct.unpack("I", f.read(4))[0]
+        self._flag_metals = struct.unpack("I", f.read(4))[0]
+        self._n_part_total_hw = struct.unpack("IIIIII", f.read(4*6))
+        self._flag_entropy_ics = struct.unpack("I", f.read(4))
+
+        # Convert to, IMO, more user-friendly versions of the default header
+        # fields.
+
+        self.n = self._n_part[1]
+        self.n_tot = self._n_part_total[1] + (self._n_part_total_hw[1]<<32)
+
+        self.mp = np.array(self._mass[1])*1e10
+        
+        self.L = self._box_size
+        self.z = self._redshift
+        self.a = self._time
+        self.omega_m = self._omega0
+        self.omega_l = self._omega_lambda
+        self.h100 = self._hubble_param
+        self.n_files = self._num_files
+
+        f.close()
+
+        
 class Gadget2Zoom(object):
     def __init__(self, file_name, fields=("x", "v", "id64")):
         """ Gadget2Zoom represents a Gadget2 file located at file_name which is
