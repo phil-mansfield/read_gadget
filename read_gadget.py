@@ -342,7 +342,7 @@ class Gadget2Zoom(object):
 
         f.close()
 
-    def read(self, var_type):
+    def read(self, var_type, hr_only=False):
         """ read() reads the specified variable from the file. For a standard
         file, the fields are:
           "x" - Position vectors in comoving Mpc/h. Shape: (n, 3)
@@ -372,7 +372,10 @@ class Gadget2Zoom(object):
         f = open(self.file_name, "rb")
         f.seek(offset)
 
-        n = np.sum(self.n)
+        if hr_only:
+            n = self.n[0]
+        else:
+            n = np.sum(self.n)
 
         # Read and convert out of code units.
         if var_type == "x":
@@ -380,6 +383,7 @@ class Gadget2Zoom(object):
             x.fromfile(f, n*3)
             x = np.array(x, dtype=np.float32)
             x = x.reshape((n, 3))
+            if hr_only: return x
             return self._resolution_bins(x)
 
         elif var_type == "v":
@@ -388,21 +392,25 @@ class Gadget2Zoom(object):
             v = np.array(v, dtype=np.float32)
             v = v.reshape((n, 3))
             v *= np.sqrt(self.a)
+            if hr_only: return v
             return self._resolution_bins(v)
 
         elif var_type == "id64":
             id = array.array("Q")
             id.fromfile(f, n)
+            if hr_only: return np.array(id, dtype=np.uint64)
             return self._resolution_bins(np.array(id, dtype=np.uint64))
 
         elif var_type == "id32":
             id = array.array("I")
             id.fromfile(f, n)
+            if hr_only: return np.array(id, dtype=np.uint32)
             return self._resolution_bins(np.array(id, dtype=np.uint32))
 
         elif var_type == "phi":
             phi = array.array("f")
             phi.fromfile(f, n)
+            if hr_only: return np.array(phi, dtype=np.float32)
             return self._resolution_bins(np.array(phi, dtype=np.float32))
 
         elif var_type == "acc":
@@ -410,11 +418,13 @@ class Gadget2Zoom(object):
             acc.fromfile(f, n*3)
             acc = np.array(acc, dtype=np.float32)
             acc = acc.reshape((n, 3))
+            if hr_only: return acc
             return self._resolution_bins(acc)
 
         elif var_type == "dt":
             dt = array.array("f")
             dt.fromfile(f, n)
+            if hr_only: return np.array(dt, dtype=np.float32)
             return self._resolution_bins(np.array(dt, dtype=np.float32))
 
         else:
@@ -588,11 +598,13 @@ class MusicIndex(object):
     def _fine_idx_array_level(self, level_i, original_coordinates):
         idx = np.arange(self.n_logical[level_i], dtype=int)
         # IDs are in z-y-x-major ordering:
+        print("Creating idx_vec")
         idx_vector = np.array([
             idx // (self.size[level_i,2]*self.size[level_i,1]),
             (idx // self.size[level_i,2]) % self.size[level_i,1],
             idx % self.size[level_i,2],
         ]).T
+        print("Created idx_vec")
 
         if level_i > 0:
             ok = np.zeros(len(idx), dtype=bool)
