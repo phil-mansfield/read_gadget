@@ -29,7 +29,7 @@ import array
 HEADER_SIZE = 256
 RECOGNIZED_VAR_TYPES = ["x", "v", "id32", "id64", "phi", "acc", "dt"]
 
-class AbstractCosmological(object)
+class AbstractCosmological(object):
     def read(self, var_type):
         """ read() reads the specified variable from the file. For a standard
         file, the fields are:
@@ -55,10 +55,21 @@ class AbstractCosmological(object)
         offset = HEADER_SIZE + 12
         for i in range(len(self.fields)):
             if self.fields[i] == var_type: break
-            offset += self._field_size(var_type)
+            offset += self._field_size(self.fields[i])
             
         f = open(self.file_name, "rb")
-        f.seek(offset)
+        f.seek(offset - 4)
+
+        size = struct.unpack("I", f.read(4))[0]
+        expected_size = {
+            "x": 12, "v": 12, "id64": 8, "id32": 4,
+            "phi": 4, "acc": 12, "dt": 4
+        }[var_type]*self.n
+        if size != expected_size:
+            raise ValueError(
+                "%s block should have size %d, but actual size is %d" % 
+                (var_type, expected_size, size)
+            )
 
         # Read and convert out of code units.
         if var_type == "x":
@@ -163,8 +174,8 @@ class LGadget2(AbstractCosmological):
 
         # Convert to, IMO, more user-friendly versions of the default header
         # fields.
-        self.n = self._n_part[1] + (self._n_part[0]<<32)
-        self.n_tot = self._n_part_total[1] + (self._n_part_total[0]<<32)
+        self.n = self._n_part[1] + (int(self._n_part[0])<<32)
+        self.n_tot = self._n_part_total[1] + (int(self._n_part_total[0])<<32)
         self.L = self._box_size
         self.mp = self._mass[1]*1e10
         self.z = self._redshift
@@ -237,7 +248,8 @@ class Gadget2Cosmological(AbstractCosmological):
         # fields.
 
         self.n = self._n_part[1]
-        self.n_tot = self._n_part_total[1] + (self._n_part_total_hw[1]<<32)
+        self.n_tot = (int(self._n_part_total[1]) +
+                      (int(self._n_part_total_hw[1])<<32))
 
         self.mp = np.array(self._mass[1])*1e10
         
@@ -311,12 +323,12 @@ class Gadget2Zoom(object):
 
         # Convert to, IMO, more user-friendly versions of the default header
         # fields.
-        self.n = np.array(self._n_part, dtype=np.int64)
-        self.n_tot = np.array(self._n_part_total, dtype=np.int64)
+        self.n = np.array(self._n_part, dtype=int)
+        self.n_tot = np.array(self._n_part_total, dtype=int)
         for i in range(len(self.n_tot)):
             self.n_tot[i] += self._n_part_total_hw[i] << 32
         self.mp = np.array(self._mass)*1e10
-            
+        
         ok = self.n_tot > 0
         self.n, self.n_tot, self.mp = self.n[ok], self.n_tot[ok], self.mp[ok]
 
@@ -356,7 +368,7 @@ class Gadget2Zoom(object):
         for i in range(len(self.fields)):
             if self.fields[i] == var_type: break
             offset += self._field_size(self.fields[i])
-            
+        
         f = open(self.file_name, "rb")
         f.seek(offset)
 
