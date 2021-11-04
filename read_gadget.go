@@ -9,7 +9,6 @@ import (
 type Gadget2ZoomFile struct {
 	N, NTot [6]int
 	Mp [6]float64
-	NFile int
 	L, Z, Scale, OmegaM, OmegaL, H100 float64
 	Fields []string
 	FileName string
@@ -19,9 +18,9 @@ type gadget2ZoomHeader struct {
 	NPart [6]int32
 	Mp [6]float64
 	Time, Redshfit float64
-	FlagSFR int32
+	FlagSFR, FlagFeedback int32
 	NPartTotal [6]int32
-	FlagFeedback, NumFiles int32
+	FlagCooling, NumFiles int32
 	L, Omega0, OmegaLambda, HubbleParam float64
 }
 
@@ -40,11 +39,11 @@ func OpenGadget2Zoom(name string, fields []string) *Gadget2ZoomFile {
 	n, nTot := [6]int{ }, [6]int{ }
 	for i := 0; i < 6; i++ {
 		n[i], nTot[i] = int(hd.NPart[i]), int(hd.NPartTotal[i])
+		hd.Mp[i] *= 1e10
 	}
 	
 	return &Gadget2ZoomFile{
 		N: n, NTot: nTot, Mp: hd.Mp,
-		NFile: int(hd.NumFiles),
 		L: hd.L, Z: 1/hd.Time - 1, Scale: hd.Time,
 		OmegaM: hd.Omega0, OmegaL: hd.OmegaLambda, H100: hd.HubbleParam,
 		Fields: fields, FileName: name,
@@ -83,11 +82,19 @@ func (f *Gadget2ZoomFile) Read(
 func offset(fields []string, n [6]int, varType string, level int) int64 {
 	off := int64(8 + 256)
 
+	nTot := 0
+	for i := range n { nTot += n[i] }
+
 	for i := range fields {
 		if fields[i] == varType {
-			return off + 4
+			off += 4
+			for j := 0; j < level; j++ { 
+				off += int64(n[j])*varSize(fields[i])
+			}
+			fmt.Println(varType, level, off)
+			return off
 		} else {
-			off += varSize(varType)*int64(n[level]) + 8
+			off += varSize(fields[i])*int64(nTot) + 8
 		}
 	}
 
