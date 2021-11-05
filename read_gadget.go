@@ -91,7 +91,6 @@ func offset(fields []string, n [6]int, varType string, level int) int64 {
 			for j := 0; j < level; j++ { 
 				off += int64(n[j])*varSize(fields[i])
 			}
-			fmt.Println(varType, level, off)
 			return off
 		} else {
 			off += varSize(fields[i])*int64(nTot) + 8
