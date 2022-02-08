@@ -27,7 +27,7 @@ import struct
 import array
 
 HEADER_SIZE = 256
-RECOGNIZED_VAR_TYPES = ["x", "v", "id32", "id64", "phi", "acc", "dt"]
+RECOGNIZED_VAR_TYPES = ["x", "v", "id32", "id64", "phi", "acc", "dt", "mp"]
 
 class AbstractCosmological(object):
     def read(self, var_type):
@@ -42,6 +42,7 @@ class AbstractCosmological(object):
         "phi" - Potential. No clue what the units are. Shape: (n,)
         "acc" - Acceleration. No clue what the units are. Shape: (n, 3)
          "dt" - Local timestep size in delta ln(a(z)). Shape: (n,)
+         "mp" - Particle mass in 1e10 Msun/h. Shape: (n,)
         """
 
         if var_type not in RECOGNIZED_VAR_TYPES:
@@ -63,7 +64,7 @@ class AbstractCosmological(object):
         size = struct.unpack("I", f.read(4))[0]
         expected_size = {
             "x": 12, "v": 12, "id64": 8, "id32": 4,
-            "phi": 4, "acc": 12, "dt": 4
+            "phi": 4, "acc": 12, "dt": 4, "mp": 4
         }[var_type]*self.n
         if size != expected_size:
             raise ValueError(
@@ -113,6 +114,11 @@ class AbstractCosmological(object):
             dt = array.array("f")
             dt.fromfile(f, self.n)
             return np.array(dt, dtype=np.float32)
+        
+        elif var_type == "mp":
+            mp = array.array("f")
+            mp.fromfile(f, self.n)
+            return np.array(mp, dtype=np.float32)
 
         else:
             assert(0)
@@ -121,7 +127,7 @@ class AbstractCosmological(object):
 
     def _field_size(self, var_type):
         elem_size = {"x": 12, "v": 12, "acc": 12, "id32": 4,
-                     "phi": 4, "dt": 4, "id64": 8}[var_type]
+                     "phi": 4, "dt": 4, "id64": 8, "mp": 4}[var_type]
         return 8 + elem_size*self.n
 
 class LGadget2(AbstractCosmological):
@@ -354,6 +360,7 @@ class Gadget2Zoom(object):
         "phi" - Potential. No clue what the units are. Shape: (n,)
         "acc" - Acceleration. No clue what the units are. Shape: (n, 3)
          "dt" - Local timestep size in delta ln(a(z)). Shape: (n,)
+         "mp" - The particle mass in 1e10 Msun/h. Shape: (n,)
         """
 
         if var_type not in RECOGNIZED_VAR_TYPES:
@@ -427,6 +434,13 @@ class Gadget2Zoom(object):
             if hr_only: return np.array(dt, dtype=np.float32)
             return self._resolution_bins(np.array(dt, dtype=np.float32))
 
+        elif var_type == "mp":
+            mp = array.array("f")
+            mp.fromfile(f, n)
+            if hr_only: return np.array(mp, dtype=np.float32)
+            return self._resolution_bins(np.array(mp, dtype=np.float32))
+
+        
         else:
             assert(0)
         
@@ -434,7 +448,7 @@ class Gadget2Zoom(object):
 
     def _field_size(self, var_type):
         elem_size = {"x": 12, "v": 12, "acc": 12, "id32": 4,
-                     "phi": 4, "dt": 4, "id64": 8}[var_type]
+                     "phi": 4, "dt": 4, "id64": 8, "mp": 4}[var_type]
         return 8 + elem_size*np.sum(self.n)
 
     def _resolution_bins(self, x):
